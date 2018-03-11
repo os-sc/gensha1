@@ -4,7 +4,10 @@
 #include <stdbool.h>
 #include <errno.h>
 
-#define print_horizontal_line(); printf("================================================================================\n");
+#define BLOCKSIZE 64
+#define WORDSIZE 4
+
+#define print_horizontal_line(); printf("\n====================================================\n\n");
 
 
 uint32_t rotl(uint32_t x, uint32_t n)
@@ -51,7 +54,7 @@ int main(int argc, char **argv)
 
     // Set Constants
     uint32_t constants[80];
-    for(size_t i = 0; i < sizeof(constants)/sizeof(uint32_t); i++) {
+    for(size_t i = 0; i < sizeof(constants)/WORDSIZE; i++) {
         if (i >=  0 && i <= 19) constants[i] = 0x5a827999;
         if (i >= 20 && i <= 39) constants[i] = 0x6ed9eba1;
         if (i >= 40 && i <= 59) constants[i] = 0x8f1bbcdc;
@@ -66,7 +69,7 @@ int main(int argc, char **argv)
     hash_values[4] = 0xc3d2e1f0;
 
     print_horizontal_line();
-    printf("Initial hash value:\n");
+    printf("Initial hash value:\n\n");
     printf("        %08x %08x %08x %08x %08x\n",
         hash_values[0],
         hash_values[1],
@@ -74,33 +77,33 @@ int main(int argc, char **argv)
         hash_values[3],
         hash_values[4]);
     print_horizontal_line();
+    printf("            A        B        C        D        E   \n");
 
     // Parse the message
     bool done_reading = false;
-    unsigned char msg[64];
+    unsigned char msg_block[BLOCKSIZE];
     int iteration_counter = 0;
-    for(;;) {
-        size_t len = fread(msg, 1, 64, stdin);
-        // Pad the last part and stop reading
-        if (len < sizeof(msg)) {
+    for(uint32_t t = 1; true; t++) {
+        size_t len = fread(msg_block, 1, 64, stdin);
+        if (len < sizeof(msg_block)) {
             done_reading = true;
             // Add binary 1000 0000 as the next byte
-            msg[len] = (unsigned char)0x80;
+            msg_block[len] = (unsigned char)0x80;
             // Zero out the rest
-            for (size_t t = len + 1; t < sizeof(msg)/sizeof(uint32_t); t++)
-                msg[t] = 0;
+            for (size_t j = len + 1; j < BLOCKSIZE/sizeof(char); j++)
+                msg_block[j] = 0;
         }
 
         // Prepare the message schedule
-        for(size_t t = 0; t < sizeof(msg_schedule)/sizeof(uint32_t); t++) {
-            if (t >= 0 && t <= 15)
-                msg_schedule[t] = msg_schedule[t];
+        for(size_t j = 0; j < BLOCKSIZE/WORDSIZE; j++) {
+            if (j >= 0 && j <= 15)
+                msg_schedule[j] = msg_schedule[j];
             else
-                msg_schedule[t] = rotl(1,
-                        msg_schedule[t-3]
-                        ^ msg_schedule[t-8]
-                        ^ msg_schedule[t-14]
-                        ^ msg_schedule[t-16]);
+                msg_schedule[j] = rotl(1,
+                        msg_schedule[j-3]
+                        ^ msg_schedule[j-8]
+                        ^ msg_schedule[j-14]
+                        ^ msg_schedule[j-16]);
         }
 
         // Initialize the working variables
@@ -111,8 +114,8 @@ int main(int argc, char **argv)
         e = hash_values[4];
 
         // Mess with the working variables
-        for(size_t t = 0; t < sizeof(msg_schedule)/sizeof(uint32_t); t++) {
-            temp = rotl(5, a) + f(t, b, d, c) + e + constants[t] + msg_schedule[t];
+        for(size_t j = 0; j < BLOCKSIZE/WORDSIZE; j++) {
+            temp = rotl(5, a) + f(j, b, d, c) + e + constants[j] + msg_schedule[j];
             e = d;
             d = c;
             c = rotl(30, b);
@@ -141,7 +144,8 @@ int main(int argc, char **argv)
     }
 
     print_horizontal_line();
-    for (size_t i = 0; i < sizeof(hash_values)/sizeof(uint32_t); i++) {
+    printf("Digest:   ");
+    for (size_t i = 0; i < BLOCKSIZE/WORDSIZE; i++) {
         printf("%x", hash_values[i]);
     }
     printf("\n");
