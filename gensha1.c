@@ -30,6 +30,15 @@ uint32_t maj(uint32_t x, uint32_t y, uint32_t z)
     return (x & y) ^ (x & z) ^ (y & z);
 }
 
+void set_constants(uint32_t* arr) {
+    for(size_t i = 0; i < 80; i++) {
+        if (i >=  0 && i <= 19) arr[i] = 0x5a827999;
+        if (i >= 20 && i <= 39) arr[i] = 0x6ed9eba1;
+        if (i >= 40 && i <= 59) arr[i] = 0x8f1bbcdc;
+        if (i >= 60 && i <= 79) arr[i] = 0xca62c1d6;
+    }
+}
+
 uint32_t f(uint32_t t, uint32_t x, uint32_t y, uint32_t z)
 {
     if (t >=  0 && t <= 19) return ch(x, y, z);
@@ -54,12 +63,7 @@ int main(int argc, char **argv)
 
     // Set Constants
     uint32_t constants[80];
-    for(size_t i = 0; i < sizeof(constants)/WORDSIZE; i++) {
-        if (i >=  0 && i <= 19) constants[i] = 0x5a827999;
-        if (i >= 20 && i <= 39) constants[i] = 0x6ed9eba1;
-        if (i >= 40 && i <= 59) constants[i] = 0x8f1bbcdc;
-        if (i >= 60 && i <= 79) constants[i] = 0xca62c1d6;
-    }
+    set_constants(constants);
 
     // Set initial hash value
     hash_values[0] = 0x67452301;
