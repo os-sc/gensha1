@@ -31,11 +31,6 @@ uint32_t maj(uint32_t x, uint32_t y, uint32_t z)
 }
 
 void set_constants(uint32_t* arr) {
-    if (sizeof(arr) != 80 * sizeof(uint32_t)){
-        printf("[ERROR] Inavlid constants array size.\n");
-        exit(EINVAL);
-    }
-
     for(size_t i = 0; i < 80; i++) {
         if (i >=  0 && i <= 19) arr[i] = 0x5a827999;
         if (i >= 20 && i <= 39) arr[i] = 0x6ed9eba1;
