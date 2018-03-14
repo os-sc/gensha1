@@ -55,7 +55,7 @@ void print_initial_hash_value(word* hash_values) {
 }
 
 void print_digest_header() {
-    printf("[t] NNNN AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD EEEEEEEE\n");
+    printf("[t] ---- AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD EEEEEEEE\n");
 }
 
 void print_digest(int t, word* hash_values) {
@@ -68,8 +68,8 @@ void print_digest(int t, word* hash_values) {
             hash_values[4]);
 }
 
-void print_block(word* block) {
-    printf("[W] BLOCK CONTENTS\n");
+void print_block(word* block, word block_number) {
+    printf("[W] B#%02d CONTENT:\n", block_number);
     for (word i = 0; i < BLOCKSIZE/sizeof(word); i++)
         printf("[W] %04d %08x\n", i, block[i]);
 }
@@ -126,13 +126,14 @@ bool read_block(FILE* file, word* block) {
 
     if (len < BLOCKSIZE) {
         // Add binary 1000 0000 as the next byte
-        tmp_block[len] = (unsigned char)0x80;
+        tmp_block[len] = 0x80;
         // Zero out the rest
         while(len < BLOCKSIZE)
             tmp_block[len++] = 0;
         block = (word*) tmp_block;
         return false;
     }
+    block = (word*) tmp_block;
     return true;
 }
 
@@ -171,7 +172,7 @@ void generate_sha1(FILE* file) {
 
     for (;;) {
         bool more = read_block(file, block);
-        print_block(block);
+        print_block(block, block_number);
         print_separator();
 
         prepare_message_schedule(msg_schedule);
