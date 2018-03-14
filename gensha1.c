@@ -104,7 +104,7 @@ void init_working_vars(word* hash_values, word* working_vars) {
     working_vars[4] = hash_values[4];
 }
 
-void cicle_working_vars(word* msg_schedule, word* constants, word* working_vars) {
+void cycle_working_vars(word* msg_schedule, word* constants, word* working_vars) {
     for(size_t j = 0; j < 80; j++) {
         word tmp = rotl(5, working_vars[0])
             + f(j, working_vars[1], working_vars[2], working_vars[3])
@@ -175,7 +175,7 @@ void generate_sha1(FILE* file) {
         init_working_vars(hash_values, working_vars);
         print_digest_header();
         for (int t=0; t < 80; t++) {
-            cicle_working_vars(msg_schedule, constants, working_vars);
+            cycle_working_vars(msg_schedule, constants, working_vars);
             print_digest(t, hash_values);
         }
         print_separator();
