@@ -5,30 +5,29 @@
 #include <string.h>
 #include <errno.h>
 
-#define word uint32_t
 #define BLOCKSIZE 64
 
-word rotl(word x, word n)
+uint32_t rotl(uint32_t x, uint32_t n)
 {
-    return (x << n) | (x >> (sizeof(word) - n));
+    return (x << n) | (x >> (sizeof(uint32_t) - n));
 }
 
-word ch(word x, word y, word z)
+uint32_t ch(uint32_t x, uint32_t y, uint32_t z)
 {
     return (x & y) ^ (~x & z);
 }
 
-word parity(word x, word y, word z)
+uint32_t parity(uint32_t x, uint32_t y, uint32_t z)
 {
     return x ^ y ^ z;
 }
 
-word maj(word x, word y, word z)
+uint32_t maj(uint32_t x, uint32_t y, uint32_t z)
 {
     return (x & y) ^ (x & z) ^ (y & z);
 }
 
-word f(word t, word x, word y, word z)
+uint32_t f(uint32_t t, uint32_t x, uint32_t y, uint32_t z)
 {
     if (t <= 19) return ch(x, y, z);
     if (t >= 20 && t <= 39) return parity(x, y, z);
@@ -45,7 +44,7 @@ void print_separator() {
     printf("[-]\n");
 }
 
-void print_initial_hash_value(word* hash_values) {
+void print_initial_hash_value(uint32_t* hash_values) {
     printf("[*] IHV: %08x %08x %08x %08x %08x\n",
             hash_values[0],
             hash_values[1],
@@ -58,7 +57,7 @@ void print_digest_header() {
     printf("[t] ---- AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD EEEEEEEE\n");
 }
 
-void print_digest(int t, word* hash_values) {
+void print_digest(int t, uint32_t* hash_values) {
     printf("[t] %04d %08x %08x %08x %08x %08x\n",
             t,
             hash_values[0],
@@ -68,13 +67,13 @@ void print_digest(int t, word* hash_values) {
             hash_values[4]);
 }
 
-void print_block(word* block, word block_number) {
+void print_block(uint32_t* block, uint32_t block_number) {
     printf("[W] B#%02d CONTENT:\n", block_number);
-    for (word i = 0; i < BLOCKSIZE/sizeof(word); i++)
+    for (uint32_t i = 0; i < BLOCKSIZE/sizeof(uint32_t); i++)
         printf("[W] %04d %08x\n", i, block[i]);
 }
 
-void init_constants(word* constants) {
+void init_constants(uint32_t* constants) {
     for(size_t i = 0; i < 80; i++) {
         if (i <= 19) constants[i] = 0x5a827999;
         if (i >= 20 && i <= 39) constants[i] = 0x6ed9eba1;
@@ -83,8 +82,8 @@ void init_constants(word* constants) {
     }
 }
 
-void prepare_message_schedule(word* msg_schedule) {
-    for(word j = 0; j < BLOCKSIZE/sizeof(word); j++) {
+void prepare_message_schedule(uint32_t* msg_schedule) {
+    for(uint32_t j = 0; j < BLOCKSIZE/sizeof(uint32_t); j++) {
         if (j <= 15)
             msg_schedule[j] = msg_schedule[j];
         else
@@ -96,7 +95,7 @@ void prepare_message_schedule(word* msg_schedule) {
     }
 }
 
-void init_working_vars(word* hash_values, word* working_vars) {
+void init_working_vars(uint32_t* hash_values, uint32_t* working_vars) {
     working_vars[0] = hash_values[0];
     working_vars[1] = hash_values[1];
     working_vars[2] = hash_values[2];
@@ -104,9 +103,9 @@ void init_working_vars(word* hash_values, word* working_vars) {
     working_vars[4] = hash_values[4];
 }
 
-void cycle_working_vars(word* msg_schedule, word* constants, word* working_vars) {
+void cycle_working_vars(uint32_t* msg_schedule, uint32_t* constants, uint32_t* working_vars) {
     for(size_t j = 0; j < 80; j++) {
-        word tmp = rotl(5, working_vars[0])
+        uint32_t tmp = rotl(5, working_vars[0])
             + f(j, working_vars[1], working_vars[2], working_vars[3])
             + working_vars[4]
             + constants[j]
@@ -120,7 +119,7 @@ void cycle_working_vars(word* msg_schedule, word* constants, word* working_vars)
     }
 }
 
-bool read_block(FILE* file, word block[16]) {
+bool read_block(FILE* file, uint32_t block[16]) {
     unsigned char* byte_block = (unsigned char*) block;
     size_t len = fread(byte_block, 1, BLOCKSIZE, file);
     if (len < BLOCKSIZE) {
@@ -134,7 +133,7 @@ bool read_block(FILE* file, word block[16]) {
     return true;
 }
 
-void init_hash_values(word* hash_values) {
+void init_hash_values(uint32_t* hash_values) {
     hash_values[0] = 0x67452301;
     hash_values[1] = 0xefcdab89;
     hash_values[2] = 0x98badcfe;
@@ -142,7 +141,7 @@ void init_hash_values(word* hash_values) {
     hash_values[4] = 0xc3d2e1f0;
 }
 
-void compute_intermediate_hash_values(word* hash_values, word* working_vars) {
+void compute_intermediate_hash_values(uint32_t* hash_values, uint32_t* working_vars) {
     hash_values[0] = working_vars[0] + hash_values[0];
     hash_values[1] = working_vars[0] + hash_values[1];
     hash_values[2] = working_vars[0] + hash_values[2];
@@ -151,14 +150,14 @@ void compute_intermediate_hash_values(word* hash_values, word* working_vars) {
 }
 
 void generate_sha1(FILE* file) {
-    word block_number = 1;
-    word block[BLOCKSIZE/sizeof(word)];
+    uint32_t block_number = 1;
+    uint32_t block[BLOCKSIZE/sizeof(uint32_t)];
 
-    word constants[80];
-    word msg_schedule[80];
+    uint32_t constants[80];
+    uint32_t msg_schedule[80];
 
-    word hash_values[5];
-    word working_vars[5];
+    uint32_t hash_values[5];
+    uint32_t working_vars[5];
 
     init_constants(constants);
     init_hash_values(hash_values);
