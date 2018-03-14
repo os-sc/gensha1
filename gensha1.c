@@ -8,20 +8,6 @@
 #define word uint32_t
 #define BLOCKSIZE 64
 
-word constants[80];
-word msg_schedule[80];
-word hash_values[5];
-
-word a;
-word b;
-word c;
-word d;
-word e;
-word t;
-
-word block_number = 1;
-word block[BLOCKSIZE/sizeof(word)];
-
 word rotl(word x, word n)
 {
     return (x << n) | (x >> (sizeof(word) - n));
@@ -53,17 +39,13 @@ word f(word t, word x, word y, word z)
     exit(EINVAL);
 }
 
-void print_empty_line() {
+void print_separator() {
+    printf("[-]\n");
+    printf("[-]==================================================\n");
     printf("[-]\n");
 }
 
-void print_separator() {
-    print_empty_line();
-    printf("[-] NNNN AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD EEEEEEEE\n");
-    print_empty_line();
-}
-
-void print_initial_hash_value() {
+void print_initial_hash_value(word* hash_values) {
     printf("[*] IHV: %08x %08x %08x %08x %08x\n",
             hash_values[0],
             hash_values[1],
@@ -72,7 +54,11 @@ void print_initial_hash_value() {
             hash_values[4]);
 }
 
-void print_digest(int t) {
+void print_digest_header() {
+    printf("[t] NNNN AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD EEEEEEEE\n");
+}
+
+void print_digest(int t, word* hash_values) {
     printf("[t] %04d %08x %08x %08x %08x %08x\n",
             t,
             hash_values[0],
@@ -82,13 +68,13 @@ void print_digest(int t) {
             hash_values[4]);
 }
 
-void print_block() {
+void print_block(word* block) {
     printf("[W] BLOCK CONTENTS\n");
     for (word i = 0; i < BLOCKSIZE/sizeof(word); i++)
         printf("[W] %04d %08x\n", i, block[i]);
 }
 
-void init_constants() {
+void init_constants(word* constants) {
     for(size_t i = 0; i < 80; i++) {
         if (i <= 19) constants[i] = 0x5a827999;
         if (i >= 20 && i <= 39) constants[i] = 0x6ed9eba1;
@@ -97,7 +83,7 @@ void init_constants() {
     }
 }
 
-void prepare_message_schedule() {
+void prepare_message_schedule(word* msg_schedule) {
     for(word j = 0; j < BLOCKSIZE/sizeof(word); j++) {
         if (j <= 15)
             msg_schedule[j] = msg_schedule[j];
@@ -110,22 +96,27 @@ void prepare_message_schedule() {
     }
 }
 
-void init_working_vars() {
-    a = hash_values[0];
-    b = hash_values[1];
-    c = hash_values[2];
-    d = hash_values[3];
-    e = hash_values[4];
+void init_working_vars(word* hash_values, word* working_vars) {
+    working_vars[0] = hash_values[0];
+    working_vars[1] = hash_values[1];
+    working_vars[2] = hash_values[2];
+    working_vars[3] = hash_values[3];
+    working_vars[4] = hash_values[4];
 }
 
-void cicle_working_vars() {
+void cicle_working_vars(word* msg_schedule, word* constants, word* working_vars) {
     for(size_t j = 0; j < 80; j++) {
-        t = rotl(5, a) + f(j, b, d, c) + e + constants[j] + msg_schedule[j];
-        e = d;
-        d = c;
-        c = rotl(30, b);
-        b = a;
-        a = t;
+        word tmp = rotl(5, working_vars[0])
+            + f(j, working_vars[1], working_vars[2], working_vars[3])
+            + working_vars[4]
+            + constants[j]
+            + msg_schedule[j];
+
+        working_vars[4] = working_vars[3];
+        working_vars[3] = working_vars[2];
+        working_vars[2] = rotl(30, working_vars[1]);
+        working_vars[1] = working_vars[0];
+        working_vars[0] = tmp;
     }
 }
 
@@ -139,13 +130,13 @@ bool read_block(FILE* file, word* block) {
         // Zero out the rest
         while(len < BLOCKSIZE)
             tmp_block[len++] = 0;
-        memcpy(block, tmp_block, BLOCKSIZE);
+        block = (word*) tmp_block;
         return false;
     }
     return true;
 }
 
-void init_hash_values() {
+void init_hash_values(word* hash_values) {
     hash_values[0] = 0x67452301;
     hash_values[1] = 0xefcdab89;
     hash_values[2] = 0x98badcfe;
@@ -153,35 +144,45 @@ void init_hash_values() {
     hash_values[4] = 0xc3d2e1f0;
 }
 
-void compute_intermediate_hash_values() {
-    hash_values[0] = a + hash_values[0];
-    hash_values[1] = b + hash_values[1];
-    hash_values[2] = c + hash_values[2];
-    hash_values[3] = d + hash_values[3];
-    hash_values[4] = e + hash_values[4];
+void compute_intermediate_hash_values(word* hash_values, word* working_vars) {
+    hash_values[0] = working_vars[0] + hash_values[0];
+    hash_values[1] = working_vars[0] + hash_values[1];
+    hash_values[2] = working_vars[0] + hash_values[2];
+    hash_values[3] = working_vars[0] + hash_values[3];
+    hash_values[4] = working_vars[0] + hash_values[4];
 }
 
 void generate_sha1(FILE* file) {
-    init_constants();
-    init_hash_values();
+    word block_number = 1;
+    word block[BLOCKSIZE/sizeof(word)];
 
-    print_separator();
-    print_initial_hash_value();
+    word constants[80];
+    word msg_schedule[80];
+
+    word hash_values[5];
+    word working_vars[5];
+
+    init_constants(constants);
+    init_hash_values(hash_values);
+
+    print_separator(constants);
+    print_initial_hash_value(hash_values);
     print_separator();
 
     for (;;) {
         bool more = read_block(file, block);
-        print_block();
+        print_block(block);
         print_separator();
 
-        prepare_message_schedule();
-        init_working_vars();
+        prepare_message_schedule(msg_schedule);
+        init_working_vars(hash_values, working_vars);
+        print_digest_header();
         for (int t=0; t < 80; t++) {
-            cicle_working_vars();
-            print_digest(t);
+            cicle_working_vars(msg_schedule, constants, working_vars);
+            print_digest(t, hash_values);
         }
         print_separator();
-        compute_intermediate_hash_values();
+        compute_intermediate_hash_values(hash_values, working_vars);
         block_number++;
         if (!more)
             break;
