@@ -121,13 +121,14 @@ void cycle_working_vars(word* msg_schedule, word* constants, word* working_vars)
 }
 
 bool read_block(FILE* file, word block[16]) {
-    size_t len = fread(block, 1, BLOCKSIZE, file);
+    unsigned char* byte_block = (unsigned char*) block;
+    size_t len = fread(byte_block, 1, BLOCKSIZE, file);
     if (len < BLOCKSIZE) {
         // Add binary 1000 0000 as the next byte
-        block[len] = 0x80;
+        byte_block[len] = 0x80;
         // Zero out the rest
         while(len < BLOCKSIZE)
-            block[len++] = 0;
+            byte_block[len++] = 0;
         return false;
     }
     return true;
@@ -192,7 +193,7 @@ int main(int argc, char **argv) {
         printf("[*] Reading from stdin\n");
         file = stdin;
     } else {
-        printf("[*] Reading from %s\n", argv[1]);
+        printf("[*] Reading from file %s\n", argv[1]);
         file = fopen(argv[1], "r");
     }
 
