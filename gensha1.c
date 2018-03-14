@@ -120,20 +120,16 @@ void cicle_working_vars(word* msg_schedule, word* constants, word* working_vars)
     }
 }
 
-bool read_block(FILE* file, word* block) {
-    unsigned char tmp_block[BLOCKSIZE];
-    size_t len = fread(tmp_block, 1, BLOCKSIZE, file);
-
+bool read_block(FILE* file, word block[16]) {
+    size_t len = fread(block, 1, BLOCKSIZE, file);
     if (len < BLOCKSIZE) {
         // Add binary 1000 0000 as the next byte
-        tmp_block[len] = 0x80;
+        block[len] = 0x80;
         // Zero out the rest
         while(len < BLOCKSIZE)
-            tmp_block[len++] = 0;
-        block = (word*) tmp_block;
+            block[len++] = 0;
         return false;
     }
-    block = (word*) tmp_block;
     return true;
 }
 
