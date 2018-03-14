@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <errno.h>
 
 #define word uint32_t
 #define BLOCKSIZE 64
-#define done_reading true
 
 word constants[80];
 word msg_schedule[80];
@@ -19,6 +19,8 @@ word d;
 word e;
 word t;
 
+word block_number = 1;
+word block[BLOCKSIZE/sizeof(word)];
 
 word rotl(word x, word n)
 {
@@ -52,11 +54,13 @@ word f(word t, word x, word y, word z)
 }
 
 void print_empty_line() {
-    printf("[ ]\n");
+    printf("[-]\n");
 }
 
 void print_separator() {
-    printf("[ ]==========A========B========C========D========E===\n");
+    print_empty_line();
+    printf("[-] NNNN AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD EEEEEEEE\n");
+    print_empty_line();
 }
 
 void print_initial_hash_value() {
@@ -69,13 +73,19 @@ void print_initial_hash_value() {
 }
 
 void print_digest(int t) {
-    printf("[>] %04d %08x %08x %08x %08x %08x\n",
+    printf("[t] %04d %08x %08x %08x %08x %08x\n",
             t,
             hash_values[0],
             hash_values[1],
             hash_values[2],
             hash_values[3],
             hash_values[4]);
+}
+
+void print_block() {
+    printf("[W] BLOCK CONTENTS\n");
+    for (word i = 0; i < BLOCKSIZE/sizeof(word); i++)
+        printf("[W] %04d %08x\n", i, block[i]);
 }
 
 void init_constants() {
@@ -92,11 +102,11 @@ void prepare_message_schedule() {
         if (j <= 15)
             msg_schedule[j] = msg_schedule[j];
         else
-            msg_schedule[j] = rotl(1,
-                    msg_schedule[j-3]
-                    ^ msg_schedule[j-8]
-                    ^ msg_schedule[j-14]
-                    ^ msg_schedule[j-16]);
+            msg_schedule[j] =
+                rotl(1, msg_schedule[j-3]
+                        ^ msg_schedule[j-8]
+                        ^ msg_schedule[j-14]
+                        ^ msg_schedule[j-16]);
     }
 }
 
@@ -120,14 +130,16 @@ void cicle_working_vars() {
 }
 
 bool read_block(FILE* file, word* block) {
-    size_t len = fread(block, 1, BLOCKSIZE, file);
+    unsigned char tmp_block[BLOCKSIZE];
+    size_t len = fread(tmp_block, 1, BLOCKSIZE, file);
 
     if (len < BLOCKSIZE) {
         // Add binary 1000 0000 as the next byte
-        block[len] = (unsigned char)0x80;
+        tmp_block[len] = (unsigned char)0x80;
         // Zero out the rest
         while(len < BLOCKSIZE)
-            block[len++] = 0;
+            tmp_block[len++] = 0;
+        memcpy(block, tmp_block, BLOCKSIZE);
         return false;
     }
     return true;
@@ -157,17 +169,22 @@ void generate_sha1(FILE* file) {
     print_initial_hash_value();
     print_separator();
 
-    word block_number = 1;
-    word block[BLOCKSIZE];
-    while (read_block(file, block)) {
+    for (;;) {
+        bool more = read_block(file, block);
+        print_block();
+        print_separator();
+
         prepare_message_schedule();
         init_working_vars();
         for (int t=0; t < 80; t++) {
             cicle_working_vars();
             print_digest(t);
         }
+        print_separator();
         compute_intermediate_hash_values();
         block_number++;
+        if (!more)
+            break;
     }
 }
 
