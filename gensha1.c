@@ -120,14 +120,14 @@ void cycle_working_vars(uint32_t* msg_schedule, uint32_t* constants, uint32_t* w
 }
 
 bool read_block(FILE* file, uint32_t block[16]) {
-    unsigned char* byte_block = (unsigned char*) block;
-    size_t len = fread(byte_block, 1, BLOCKSIZE, file);
+    unsigned char* char_block = (unsigned char*) block;
+    size_t len = fread(char_block, 1, BLOCKSIZE, file);
     if (len < BLOCKSIZE) {
-        // Add binary 1000 0000 as the next byte
-        byte_block[len] = 0x80;
+        // Add 1000 0000 as the next byte
+        char_block[len] = 0x80;
         // Zero out the rest
         while(len < BLOCKSIZE)
-            byte_block[len++] = 0;
+            char_block[len++] = 0;
         return false;
     }
     return true;
