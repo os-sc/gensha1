@@ -38,13 +38,15 @@ uint32_t f(uint32_t t, uint32_t x, uint32_t y, uint32_t z)
     exit(EINVAL);
 }
 
-void print_separator() {
+void print_separator()
+{
     printf("[-]\n");
     printf("[-]==================================================\n");
     printf("[-]\n");
 }
 
-void print_initial_hash_value(uint32_t* hash_values) {
+void print_initial_hash_value(uint32_t hash_values[5])
+{
     printf("[*] IHV: %08x %08x %08x %08x %08x\n",
             hash_values[0],
             hash_values[1],
@@ -53,11 +55,13 @@ void print_initial_hash_value(uint32_t* hash_values) {
             hash_values[4]);
 }
 
-void print_digest_header() {
+void print_digest_header()
+{
     printf("[t] ---- AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD EEEEEEEE\n");
 }
 
-void print_digest(int t, uint32_t* hash_values) {
+void print_digest(int t, uint32_t hash_values[5])
+{
     printf("[t] %04d %08x %08x %08x %08x %08x\n",
             t,
             hash_values[0],
@@ -67,13 +71,15 @@ void print_digest(int t, uint32_t* hash_values) {
             hash_values[4]);
 }
 
-void print_block(uint32_t* block, uint32_t block_number) {
+void print_block(uint32_t block[16], uint32_t block_number)
+{
     printf("[W] B#%02d CONTENT:\n", block_number);
     for (uint32_t i = 0; i < BLOCKSIZE/sizeof(uint32_t); i++)
         printf("[W] %04d %08x\n", i, block[i]);
 }
 
-void init_constants(uint32_t* constants) {
+void init_constants(uint32_t constants[16])
+{
     for(size_t i = 0; i < 80; i++) {
         if (i <= 19) constants[i] = 0x5a827999;
         if (i >= 20 && i <= 39) constants[i] = 0x6ed9eba1;
@@ -82,7 +88,8 @@ void init_constants(uint32_t* constants) {
     }
 }
 
-void prepare_message_schedule(uint32_t* msg_schedule) {
+void prepare_message_schedule(uint32_t msg_schedule[16])
+{
     for(uint32_t j = 0; j < BLOCKSIZE/sizeof(uint32_t); j++) {
         if (j <= 15)
             msg_schedule[j] = msg_schedule[j];
@@ -95,7 +102,8 @@ void prepare_message_schedule(uint32_t* msg_schedule) {
     }
 }
 
-void init_working_vars(uint32_t* hash_values, uint32_t* working_vars) {
+void init_working_vars(uint32_t hash_values[5], uint32_t working_vars[5])
+{
     working_vars[0] = hash_values[0];
     working_vars[1] = hash_values[1];
     working_vars[2] = hash_values[2];
@@ -103,7 +111,8 @@ void init_working_vars(uint32_t* hash_values, uint32_t* working_vars) {
     working_vars[4] = hash_values[4];
 }
 
-void cycle_working_vars(uint32_t* msg_schedule, uint32_t* constants, uint32_t* working_vars) {
+void cycle_working_vars(uint32_t msg_schedule[16], uint32_t constants[16], uint32_t working_vars[5])
+{
     for(size_t j = 0; j < 80; j++) {
         uint32_t tmp = rotl(5, working_vars[0])
             + f(j, working_vars[1], working_vars[2], working_vars[3])
@@ -119,21 +128,22 @@ void cycle_working_vars(uint32_t* msg_schedule, uint32_t* constants, uint32_t* w
     }
 }
 
-bool read_block(FILE* file, uint32_t block[16]) {
-    unsigned char* char_block = (unsigned char*) block;
-    size_t len = fread(char_block, 1, BLOCKSIZE, file);
+bool read_block(FILE* file, uint8_t block[64])
+{
+    size_t len = fread(block, 1, BLOCKSIZE, file);
     if (len < BLOCKSIZE) {
         // Add 1000 0000 as the next byte
-        char_block[len] = 0x80;
+        block[len] = 0x80;
         // Zero out the rest
         while(len < BLOCKSIZE)
-            char_block[len++] = 0;
+            block[len++] = 0;
         return false;
     }
     return true;
 }
 
-void init_hash_values(uint32_t* hash_values) {
+void init_hash_values(uint32_t hash_values[5])
+{
     hash_values[0] = 0x67452301;
     hash_values[1] = 0xefcdab89;
     hash_values[2] = 0x98badcfe;
@@ -141,7 +151,8 @@ void init_hash_values(uint32_t* hash_values) {
     hash_values[4] = 0xc3d2e1f0;
 }
 
-void compute_intermediate_hash_values(uint32_t* hash_values, uint32_t* working_vars) {
+void compute_intermediate_hash_values(uint32_t hash_values[5], uint32_t working_vars[5])
+{
     hash_values[0] = working_vars[0] + hash_values[0];
     hash_values[1] = working_vars[0] + hash_values[1];
     hash_values[2] = working_vars[0] + hash_values[2];
@@ -149,44 +160,44 @@ void compute_intermediate_hash_values(uint32_t* hash_values, uint32_t* working_v
     hash_values[4] = working_vars[0] + hash_values[4];
 }
 
-void generate_sha1(FILE* file) {
+void generate_sha1(FILE* file, uint32_t hash[5])
+{
     uint32_t block_number = 1;
     uint32_t block[BLOCKSIZE/sizeof(uint32_t)];
 
     uint32_t constants[80];
     uint32_t msg_schedule[80];
 
-    uint32_t hash_values[5];
     uint32_t working_vars[5];
 
     init_constants(constants);
-    init_hash_values(hash_values);
+    init_hash_values(hash);
 
     print_separator(constants);
-    print_initial_hash_value(hash_values);
+    print_initial_hash_value(hash);
     print_separator();
 
-    for (;;) {
-        bool more = read_block(file, block);
+    bool more;
+    do {
+        more = read_block(file, (uint8_t*)block);
         print_block(block, block_number);
         print_separator();
 
         prepare_message_schedule(msg_schedule);
-        init_working_vars(hash_values, working_vars);
+        init_working_vars(hash, working_vars);
         print_digest_header();
         for (int t=0; t < 80; t++) {
             cycle_working_vars(msg_schedule, constants, working_vars);
-            print_digest(t, hash_values);
+            print_digest(t, hash);
         }
         print_separator();
-        compute_intermediate_hash_values(hash_values, working_vars);
+        compute_intermediate_hash_values(hash, working_vars);
         block_number++;
-        if (!more)
-            break;
-    }
+    } while(more);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     FILE* file;
     if (argc < 2) {
         printf("[*] Reading from stdin\n");
@@ -196,7 +207,8 @@ int main(int argc, char **argv) {
         file = fopen(argv[1], "r");
     }
 
-    generate_sha1(file);
+    uint32_t hash[5];
+    generate_sha1(file, hash);
 
     return EXIT_SUCCESS;
 }
